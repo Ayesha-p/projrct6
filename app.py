@@ -41,19 +41,19 @@ def decrypt_data(encrypted_text, passkey):
 
 # --- Streamlit UI ---
 
-st.title("🔒 Secure Data Encryption System")
+st.title("Secure Data Encryption System")
 
 menu = ["Home", "Store Data", "Retrieve Data", "Login"]
 choice = st.sidebar.selectbox("Navigation", menu)
 
 # -------------------- Home --------------------
 if choice == "Home":
-    st.subheader("🏠 Welcome to the Secure Data System")
+    st.subheader("Welcome to the Secure Data System")
     st.write("Use this app to **securely store and retrieve data** using unique passkeys.")
 
 # -------------------- Store Data --------------------
 elif choice == "Store Data":
-    st.subheader("📂 Store Data Securely")
+    st.subheader("Store Data Securely")
     user_data = st.text_area("Enter Data:")
     passkey = st.text_input("Enter Passkey:", type="password")
 
@@ -65,16 +65,16 @@ elif choice == "Store Data":
                 "encrypted_text": encrypted_text,
                 "passkey": hashed_passkey
             }
-            st.success("✅ Data encrypted and stored securely!")
+            st.success(" Data encrypted and stored securely!")
             st.text("Here is your encrypted text (save this to retrieve later):")
             st.code(encrypted_text)
         else:
-            st.error("⚠️ Both fields are required!")
+            st.error(" Both fields are required!")
 
 # -------------------- Retrieve Data --------------------
 elif choice == "Retrieve Data":
     if not st.session_state.authorized:
-        st.warning("🔐 Too many failed attempts. Please log in again.")
+        st.warning(" Too many failed attempts. Please log in again.")
         st.switch_page("Login")
 
     st.subheader("🔍 Retrieve Your Data")
@@ -85,26 +85,26 @@ elif choice == "Retrieve Data":
         if encrypted_text and passkey:
             result = decrypt_data(encrypted_text, passkey)
             if result:
-                st.success(f"✅ Decrypted Data: {result}")
+                st.success(f" Decrypted Data: {result}")
             else:
                 attempts_left = 3 - st.session_state.failed_attempts
-                st.error(f"❌ Incorrect passkey! Attempts left: {attempts_left}")
+                st.error(f"Incorrect passkey! Attempts left: {attempts_left}")
                 if not st.session_state.authorized:
-                    st.warning("🔒 Too many failed attempts! Redirecting to Login...")
+                    st.warning(" Too many failed attempts! Redirecting to Login...")
                     st.experimental_rerun()
         else:
-            st.error("⚠️ Both fields are required!")
+            st.error(" Both fields are required!")
 
 # -------------------- Login Page --------------------
 elif choice == "Login":
-    st.subheader("🔑 Reauthorization Required")
+    st.subheader(" Reauthorization Required")
     login_pass = st.text_input("Enter Master Password:", type="password")
 
     if st.button("Login"):
         if login_pass == "admin123":  # Change this to a secure method in production
             st.session_state.failed_attempts = 0
             st.session_state.authorized = True
-            st.success("✅ Reauthorized successfully!")
+            st.success(" Reauthorized successfully!")
             st.experimental_rerun()
         else:
-            st.error("❌ Incorrect password!")
+            st.error(" Incorrect password!")
