@@ -2,100 +2,109 @@ import streamlit as st
 import hashlib
 from cryptography.fernet import Fernet
 
-# Generate a key (In production, store this securely)
-KEY = Fernet.generate_key()
+# Fixed encryption key (DO NOT regenerate each run)
+KEY = b'3JZDW3uRE0U8ZtUROb2P7hd31fpT-3bn2FEhtOiW2yk='  # Generate once using Fernet.generate_key()
 cipher = Fernet(KEY)
 
-# In-memory storage
+# Initialize session state for security
 if "stored_data" not in st.session_state:
     st.session_state.stored_data = {}
 
 if "failed_attempts" not in st.session_state:
     st.session_state.failed_attempts = 0
 
-if "is_logged_in" not in st.session_state:
-    st.session_state.is_logged_in = False
+if "authorized" not in st.session_state:
+    st.session_state.authorized = True  # True on first load, False after 3 wrong attempts
 
-# Hashing function
+# Function to hash passkey
 def hash_passkey(passkey):
     return hashlib.sha256(passkey.encode()).hexdigest()
 
-# Encryption function
+# Function to encrypt data
 def encrypt_data(text):
     return cipher.encrypt(text.encode()).decode()
 
-# Decryption function
+# Function to decrypt data
 def decrypt_data(encrypted_text, passkey):
-    hashed_passkey = hash_passkey(passkey)
-    for key, value in st.session_state.stored_data.items():
-        if value["encrypted_text"] == encrypted_text and value["passkey"] == hashed_passkey:
-            st.session_state.failed_attempts = 0
-            return cipher.decrypt(encrypted_text.encode()).decode()
-    st.session_state.failed_attempts += 1
-    return None
+    hashed = hash_passkey(passkey)
+    stored = st.session_state.stored_data.get(encrypted_text)
 
-# App UI
-st.title("🔐 Secure Data Encryption System")
+    if stored and stored["passkey"] == hashed:
+        st.session_state.failed_attempts = 0
+        st.session_state.authorized = True
+        return cipher.decrypt(encrypted_text.encode()).decode()
+    else:
+        st.session_state.failed_attempts += 1
+        if st.session_state.failed_attempts >= 3:
+            st.session_state.authorized = False
+        return None
 
-# Navigation menu
+# --- Streamlit UI ---
+
+st.title("🔒 Secure Data Encryption System")
+
 menu = ["Home", "Store Data", "Retrieve Data", "Login"]
-choice = st.sidebar.selectbox("Menu", menu)
+choice = st.sidebar.selectbox("Navigation", menu)
 
-# Pages
+# -------------------- Home --------------------
 if choice == "Home":
-    st.header("🏠 Welcome!")
-    st.markdown("This app lets you securely **store** and **retrieve** data with encryption and passkey.")
+    st.subheader("🏠 Welcome to the Secure Data System")
+    st.write("Use this app to **securely store and retrieve data** using unique passkeys.")
 
+# -------------------- Store Data --------------------
 elif choice == "Store Data":
-    st.header("📂 Store Data")
-    user_data = st.text_area("Enter Data to Encrypt")
-    passkey = st.text_input("Enter a Passkey", type="password")
+    st.subheader("📂 Store Data Securely")
+    user_data = st.text_area("Enter Data:")
+    passkey = st.text_input("Enter Passkey:", type="password")
 
     if st.button("Encrypt & Save"):
         if user_data and passkey:
-            hashed = hash_passkey(passkey)
-            encrypted = encrypt_data(user_data)
-            st.session_state.stored_data[encrypted] = {
-                "encrypted_text": encrypted,
-                "passkey": hashed
+            hashed_passkey = hash_passkey(passkey)
+            encrypted_text = encrypt_data(user_data)
+            st.session_state.stored_data[encrypted_text] = {
+                "encrypted_text": encrypted_text,
+                "passkey": hashed_passkey
             }
             st.success("✅ Data encrypted and stored securely!")
-            st.code(encrypted, language="text")
+            st.text("Here is your encrypted text (save this to retrieve later):")
+            st.code(encrypted_text)
         else:
             st.error("⚠️ Both fields are required!")
 
+# -------------------- Retrieve Data --------------------
 elif choice == "Retrieve Data":
-    if st.session_state.failed_attempts >= 3 and not st.session_state.is_logged_in:
-        st.warning("🚨 Too many failed attempts. Redirecting to Login...")
-        st.experimental_rerun()
+    if not st.session_state.authorized:
+        st.warning("🔐 Too many failed attempts. Please log in again.")
+        st.switch_page("Login")
 
-    st.header("🔍 Retrieve Data")
-    encrypted_input = st.text_area("Enter Encrypted Data")
-    passkey = st.text_input("Enter Passkey", type="password")
+    st.subheader("🔍 Retrieve Your Data")
+    encrypted_text = st.text_area("Paste Encrypted Text:")
+    passkey = st.text_input("Enter Passkey:", type="password")
 
     if st.button("Decrypt"):
-        if encrypted_input and passkey:
-            result = decrypt_data(encrypted_input, passkey)
+        if encrypted_text and passkey:
+            result = decrypt_data(encrypted_text, passkey)
             if result:
-                st.success("✅ Decrypted Text:")
-                st.code(result, language="text")
+                st.success(f"✅ Decrypted Data: {result}")
             else:
-                remaining = 3 - st.session_state.failed_attempts
-                st.error(f"❌ Incorrect passkey! Attempts left: {remaining}")
-                if st.session_state.failed_attempts >= 3:
-                    st.warning("🔐 Too many failed attempts! Redirecting to Login.")
+                attempts_left = 3 - st.session_state.failed_attempts
+                st.error(f"❌ Incorrect passkey! Attempts left: {attempts_left}")
+                if not st.session_state.authorized:
+                    st.warning("🔒 Too many failed attempts! Redirecting to Login...")
                     st.experimental_rerun()
         else:
             st.error("⚠️ Both fields are required!")
 
+# -------------------- Login Page --------------------
 elif choice == "Login":
-    st.header("🔑 Login Required")
-    login_pass = st.text_input("Enter Master Password", type="password")
+    st.subheader("🔑 Reauthorization Required")
+    login_pass = st.text_input("Enter Master Password:", type="password")
 
     if st.button("Login"):
-        if login_pass == "admin123":  # For demo purposes
+        if login_pass == "admin123":  # Change this to a secure method in production
             st.session_state.failed_attempts = 0
-            st.session_state.is_logged_in = True
-            st.success("✅ Login successful. You may now retry.")
+            st.session_state.authorized = True
+            st.success("✅ Reauthorized successfully!")
+            st.experimental_rerun()
         else:
             st.error("❌ Incorrect password!")
