@@ -77,7 +77,7 @@ elif choice == "Retrieve Data":
         st.warning(" Too many failed attempts. Please log in again.")
         st.switch_page("Login")
 
-    st.subheader("🔍 Retrieve Your Data")
+    st.subheader(" Retrieve Your Data")
     encrypted_text = st.text_area("Paste Encrypted Text:")
     passkey = st.text_input("Enter Passkey:", type="password")
 
